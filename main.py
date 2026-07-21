@@ -4,7 +4,8 @@ from pydantic import BaseModel
 app = FastAPI()
 
 class Task(BaseModel):
-  title:str
+  title:str | None = None
+  done: bool = False
 
 tasks = [{
   "id": 1,
@@ -56,3 +57,24 @@ def create_task(task: Task, response:Response):
   }
   tasks.append(new_task)
   return {"task":new_task}
+
+@app.put("/tasks/{task_id}")
+def update_task(task_id: int , task:Task):
+  if task.title is None and task.done is None:
+    raise HTTPException(status_code=400 , detail = "Empty/invalid body")
+  for index, task_item in enumerate(tasks):
+    if task_id == task_item["id"]:
+      task_copy = task_item.copy()
+      task_to_update = task.model_dump(exclude_unset=True)
+      task_copy.update(task_to_update)
+      tasks[index] = task_copy
+      return {"task": tasks[index]}
+  raise HTTPException(status_code=404 , detail = "Unknown id")
+
+@app.delete("/tasks/{task_id}",status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(task_id:int):
+  for index,task_item in enumerate(tasks):
+    if task_id == task_item["id"]:
+      del tasks[index]
+      return {}
+  raise HTTPException(status_code=404 , detail = "Unknown id")
